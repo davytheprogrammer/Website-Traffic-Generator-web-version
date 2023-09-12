@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Loading</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background-color: #f0f0f0;
+        }
+
+        .container {
+            width: 400px;
+            padding: 20px;
+            text-align: center;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .progress-bar-fill {
+            width: 0;
+            height: 100%;
+            background-color: #00ff00;
+            transition: width 1s;
+        }
+
+        .loading-text {
+            font-size: 16px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Loading...</h1>
+        <div class="progress-bar">
+            <div class="progress-bar-fill"></div>
+        </div>
+        <p class="loading-text">Injecting for 2 minutes</p>
+    </div>
+
+    <script>
+        // Function to update the progress bar width
+        function updateProgressBar() {
+            var progressBar = document.querySelector('.progress-bar-fill');
+            var width = 0;
+            var interval = setInterval(frame, 100);
+
+            function frame() {
+                if (width >= 100) {
+                    clearInterval(interval);
+                    window.location.href = '/success';  // Redirect to the success page
+                } else {
+                    width++;
+                    progressBar.style.width = width + '%';
+                }
+            }
+        }
+
+        // Call the updateProgressBar function when the page loads
+        window.onload = updateProgressBar;
+    </script>
+</body>
+</html>

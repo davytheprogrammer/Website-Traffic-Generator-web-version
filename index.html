@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Website Views Generator</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(45deg, #ff0000, #00ff00, #0000ff, #ffff00);
+            background-size: 400% 400%;
+            animation: glowing-background 10s infinite;
+        }
+
+        @keyframes glowing-background {
+            0%, 100% {
+                background-position: 0% 50%;
+            }
+            20% {
+                background-position: 100% 50%;
+            }
+            40% {
+                background-position: 50% 100%;
+            }
+            60% {
+                background-position: 50% 0%;
+            }
+            80% {
+                background-position: 0% 0%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome to the Website Views Generator</h1>
+
+        <form method="post" action="/generate_views">
+            <label for="website">Website:</label>
+            <input type="text" id="website" name="website" required><br><br>
+
+            <label for="max_clicks">Maximum Number of Clicks:</label>
+            <input type="number" id="max_clicks" name="max_clicks" required><br><br>
+
+            <input type="submit" value="Generate Views">
+        </form>
+
+        <form method="get" action="/emulate_mouse_movement">
+            <input type="submit" value="Emulate Mouse Movement">
+        </form>
+    </div>
+</body>
+</html>
