@@ -11,9 +11,8 @@ The usage should be quite simple.
 Download and prepare a HTTP proxy list:
 
 ```
-$> curl  http://txt.proxyspy.net/proxy.txt -o- | grep '+ $'| awk -F' ' '{print $1}' | sort -R > proxies.txt
 ```run the app.py
-download the latest chromedriver
+download the latest chromedriver that is the same as the chrome version you are using
 
 ## License
 
