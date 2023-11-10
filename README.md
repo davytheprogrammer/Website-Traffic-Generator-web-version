@@ -5,6 +5,7 @@ This tool can be used to generate real (fake) traffic on a specific website (dom
 After visiting a page the tool will randomly select one link from the page and click on it. Only links from the same domain are visited.
 
 ## Usage 
+ALL I AM REQUESTING IS FOR YOU TO STAR THE REPO
 The usage should be quite simple. 
 
 
@@ -12,6 +13,7 @@ The usage should be quite simple.
 ```run the app.py
 download the latest chromedriver that is the same as the chrome version you are using
 
-## License
 
+## License
+contact me via +254793609747
 See LICENCE.md
