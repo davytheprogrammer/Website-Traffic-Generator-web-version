@@ -1,14 +1,12 @@
 TrafficGenerator
 ======
-This tool can be used to generate real (fake) traffic on a specific website (domain). It uses the headless browser phantomjs, so that all content will be rendered similar to a real browser, making it hardly to distinguish. 
-HTTP proxy lists and random user agents are also supported. 
+This tool can be used to generate real (fake) traffic on a specific website (domain). It uses the headless browser phantomjs, so that all content will be rendered similar to a real browser, making it hardly to distinguish. Can be used to generate traffic for google adsense too
 
-After visiting a page the tool will randomly select one link from the page and click on it. Only links from the same domain are visisted.
+After visiting a page the tool will randomly select one link from the page and click on it. Only links from the same domain are visited.
 
 ## Usage 
 The usage should be quite simple. 
 
-Download and prepare a HTTP proxy list:
 
 ```
 ```run the app.py
