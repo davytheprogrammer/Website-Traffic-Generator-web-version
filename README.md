@@ -1,6 +1,6 @@
 TrafficGenerator
 ======
-This tool can be used to generate real (fake) traffic on a specific website (domain). It uses the headless browser phantomjs, so that all content will be rendered similar to a real browser, making it hardly to distinguish. Can be used to generate traffic for google adsense too
+This tool can be used to generate real (fake) traffic on a specific website (domain). It can use the headless browser or a visible one according to your setting, so that all content will be rendered similar to a real browser, making it hardly to distinguish. Can be used to generate traffic for google adsense too or for improving your SEO score
 
 After visiting a page the tool will randomly select one link from the page and click on it. Only links from the same domain are visited.
 As long as you have a chrome driver version matching the version of xhrome you are using, it is a guarantee the program will run
