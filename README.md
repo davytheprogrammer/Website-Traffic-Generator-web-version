@@ -60,3 +60,11 @@ This tool is intended for educational and testing purposes only. Ensure you have
 ---
 
 For any further assistance or details, please do not hesitate to contact me. Happy coding!
+
+💖 **Support the Project!**
+
+If you find this project helpful, consider buying me a coffee. Your contribution goes a long way in keeping this tool free and continuously improved.
+
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-donate-yellow.svg)](https://www.buymeacoffee.com/davy254)
+
+Thank you for supporting open-source development! 🚀
