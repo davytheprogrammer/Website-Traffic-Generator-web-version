@@ -3,6 +3,7 @@ TrafficGenerator
 This tool can be used to generate real (fake) traffic on a specific website (domain). It uses the headless browser phantomjs, so that all content will be rendered similar to a real browser, making it hardly to distinguish. Can be used to generate traffic for google adsense too
 
 After visiting a page the tool will randomly select one link from the page and click on it. Only links from the same domain are visited.
+As long as you have a chrome driver version matching the version of xhrome you are using, it is a guarantee the program will run
 
 # Traffic Generator using Selenium and Flask
 
@@ -20,7 +21,7 @@ This project aims to generate traffic for a specified website by leveraging Sele
 
 1. Clone this repository to your local machine:
     ```bash
-    git clone [repository_url]
+    git clone https://github.com/davytheprogrammer/Website-Traffic-Generator-web-version.git
     ```
 
 2. Navigate to the project directory:
