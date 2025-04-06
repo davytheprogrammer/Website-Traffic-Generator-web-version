@@ -21,12 +21,11 @@ def generate_views():
 def generate_traffic(website, max_clicks):
     threads = 10
     min_clicks = 2
-    proxy_file = 'proxies.txt'
     timeout = 60
     max_offset = 10
 
     # Construct the command with the provided inputs
-    command = f"python main.py -d {website} --forever --threads {threads} --max-clicks {max_clicks} --min-clicks {min_clicks} --forever --proxy_file {proxy_file} --timeout {timeout} --max-offset {max_offset}"
+    command = f"python main.py -d {website} --forever --threads {threads} --max-clicks {max_clicks} --min-clicks {min_clicks} --forever --timeout {timeout} --max-offset {max_offset}"
 
     # Execute the command
     process = subprocess.Popen(
@@ -51,4 +50,3 @@ def success():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)
-
