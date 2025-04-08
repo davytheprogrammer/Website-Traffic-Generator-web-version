@@ -1,4 +1,5 @@
 # Website Traffic Generator
+https://github.com/davytheprogrammer/Website-Traffic-Generator-web-version/blob/main/static/Screenshot%20from%202025-04-08%2014-49-04.png
 
 A Flask-based application for generating simulated organic website traffic. This tool allows users to input a target URL and desired visit count, then simulates organic traffic by visiting pages and randomly clicking links.
 
