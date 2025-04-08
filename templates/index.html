@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Website Traffic Generator</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header class="my-5 text-center">
+            <h1>Website Traffic Generator</h1>
+            <p class="lead text-muted">Generate simulated website traffic for testing purposes</p>
+            <div class="alert alert-warning mt-3">
+                <strong>Educational Purposes Only:</strong> This tool is for educational purposes. Only use on websites you own or have permission to test.
+            </div>
+        </header>
+
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="card-title mb-0">Traffic Generator Configuration</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="generatorForm">
+                            <div class="mb-3">
+                                <label for="targetUrl" class="form-label">Target URL</label>
+                                <input type="url" class="form-control" id="targetUrl" 
+                                       placeholder="https://example.com" required>
+                                <div class="form-text">Enter the full URL including http:// or https://</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="visitCount" class="form-label">Number of Visits</label>
+                                <input type="number" class="form-control" id="visitCount" 
+                                       min="1" max="500" value="50" required>
+                                <div class="form-text">Maximum 500 visits per session</div>
+                            </div>
+                            
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-primary" id="validateButton">Validate URL</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                
+                <div class="card mt-4 d-none" id="validationResult">
+                    <div class="card-header" id="validationHeader">
+                        <h5 class="card-title mb-0" id="validationTitle">URL Validation Result</h5>
+                    </div>
+                    <div class="card-body">
+                        <p id="validationMessage"></p>
+                        <div class="d-grid gap-2" id="startButtonContainer">
+                            <button class="btn btn-success" id="startButton">Start Generating Traffic</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <footer class="my-5 pt-5 text-muted text-center text-small">
+            <p class="mb-1">&copy; 2025 Website Traffic Generator</p>
+            <ul class="list-inline">
+                <li class="list-inline-item"><a href="#" id="showDisclaimerLink">View Disclaimer</a></li>
+            </ul>
+        </footer>
+    </div>
+
+    <!-- Disclaimer Modal -->
+    <div class="modal fade" id="disclaimerModal" tabindex="-1" aria-labelledby="disclaimerModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title" id="disclaimerModalLabel">Important Disclaimer</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <h4>⚠️ Educational Purposes Only ⚠️</h4>
+                    <p>This tool is provided strictly for educational purposes. By using this tool, you agree to the following:</p>
+                    
+                    <ol>
+                        <li>You will only use this tool on websites you own or have explicit permission to test.</li>
+                        <li>You are aware that generating automated traffic may violate the Terms of Service of many websites.</li>
+                        <li>You assume all legal responsibility for how this tool is used.</li>
+                        <li>Misuse of this tool may result in IP banning, account termination, or legal action.</li>
+                        <li>This tool comes with no warranties or guarantees regarding effectiveness or safety.</li>
+                    </ol>
+                    
+                    <p>The creators of this tool disclaim all liability for any consequences resulting from its use.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('generatorForm');
+            const validateButton = document.getElementById('validateButton');
+            const validationResult = document.getElementById('validationResult');
+            const validationHeader = document.getElementById('validationHeader');
+            const validationTitle = document.getElementById('validationTitle');
+            const validationMessage = document.getElementById('validationMessage');
+            const startButton = document.getElementById('startButton');
+            const showDisclaimerLink = document.getElementById('showDisclaimerLink');
+            
+            // Initialize Bootstrap modal
+            const disclaimerModal = new bootstrap.Modal(document.getElementById('disclaimerModal'));
+            
+            showDisclaimerLink.addEventListener('click', function(e) {
+                e.preventDefault();
+                disclaimerModal.show();
+            });
+            
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const url = document.getElementById('targetUrl').value.trim();
+                
+                // Disable button and show loading state
+                validateButton.disabled = true;
+                validateButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Validating...';
+                
+                // Hide previous validation result
+                validationResult.classList.add('d-none');
+                
+                // Send validation request
+                fetch('/validate-url', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ url: url }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Show validation result
+                    validationResult.classList.remove('d-none');
+                    
+                    if (data.valid) {
+                        validationHeader.className = 'card-header bg-success text-white';
+                        validationTitle.textContent = 'URL is Valid';
+                        validationMessage.textContent = data.message;
+                        startButton.style.display = 'block';
+                    } else {
+                        validationHeader.className = 'card-header bg-danger text-white';
+                        validationTitle.textContent = 'URL is Invalid';
+                        validationMessage.textContent = data.message;
+                        startButton.style.display = 'none';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    validationResult.classList.remove('d-none');
+                    validationHeader.className = 'card-header bg-danger text-white';
+                    validationTitle.textContent = 'Validation Error';
+                    validationMessage.textContent = 'An error occurred during validation. Please try again.';
+                    startButton.style.display = 'none';
+                })
+                .finally(() => {
+                    // Reset button state
+                    validateButton.disabled = false;
+                    validateButton.innerHTML = 'Validate URL';
+                });
+            });
+            
+            startButton.addEventListener('click', function() {
+                const url = document.getElementById('targetUrl').value.trim();
+                const visitCount = parseInt(document.getElementById('visitCount').value);
+                
+                // Redirect to dashboard
+                window.location.href = `/dashboard?url=${encodeURIComponent(url)}&visits=${visitCount}`;
+            });
+        });
+    </script>
+</body>
+</html>

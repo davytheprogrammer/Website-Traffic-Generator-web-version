@@ -1,7 +1,8 @@
-appdirs==1.4.3
-packaging==16.8
-pyparsing==2.2.0
-selenium==3.3.1
-six==1.10.0
-flask
-PyAutoGUI~=0.9.54
+flask==2.0.1
+requests==2.26.0
+beautifulsoup4==4.10.0
+fake-useragent==0.1.11
+flask-socketio==5.1.1
+python-dotenv==0.19.1
+validators==0.18.2
+urllib3==1.26.7

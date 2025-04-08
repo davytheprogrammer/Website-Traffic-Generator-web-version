@@ -1,122 +1,62 @@
-# TrafficGenerator
-======
-A powerful tool designed to generate authentic-looking traffic on a specific website or domain. Using customizable headless or visible browser instances, it creates user interactions that closely mimic real visitors, making it difficult to distinguish from genuine traffic. Perfect for testing website performance, improving SEO metrics, or simulating audience engagement.
+# Website Traffic Generator
 
-## 🌟 Key Features
+A Flask-based application for generating simulated organic website traffic. This tool allows users to input a target URL and desired visit count, then simulates organic traffic by visiting pages and randomly clicking links.
 
-- **Authentic Browser Rendering**: Fully renders all content similar to a real browser experience
-- **Intelligent Navigation**: Randomly selects and clicks links within the same domain
-- **Customizable Settings**: Configure thread counts, click patterns, and timing parameters
-- **Compatible with Google Analytics**: Properly triggers analytics tracking events
-- **SEO Testing Compatible**: Helps evaluate how traffic impacts search ranking signals
+## ⚠️ IMPORTANT DISCLAIMERS ⚠️
 
-## 📋 Overview
+1. **Educational Purposes Only**: This tool is created strictly for educational purposes, testing, and demonstration of web technologies.
 
-This project generates website traffic using Selenium and Chrome WebDriver through a user-friendly Flask interface. Once initialized, the system automatically navigates through your website following natural browsing patterns while respecting domain boundaries.
+2. **Legal Responsibility**: The user assumes all legal responsibility for how this tool is used. Misuse of this software may violate:
+   - Terms of Service agreements
+   - Anti-spam laws
+   - Computer Fraud and Abuse Act
+   - Similar laws in your jurisdiction
 
-## ⚠️ Important Notice
+3. **Ethical Usage**: Only use this tool on websites you own or have explicit permission to test.
 
-**Windows Only**: This application is currently only compatible with Windows operating systems.
+4. **No Guarantees**: This software comes with no guarantees regarding:
+   - Effectiveness at simulating organic traffic
+   - Ability to avoid detection
+   - Impact on target website or analytics platforms
 
-**Looking for an easier setup?** If you find this repository challenging to configure or need a traffic generator specifically designed for AdSense-level detection, check out our enhanced version:
+5. **Potential Consequences**: Improper use may result in:
+   - IP banning
+   - Account termination
+   - Legal action from website owners
+   - Violation of Google Analytics Terms of Service
 
-👉 [Website-Traffic-Generator-With-GUI](https://github.com/davytheprogrammer/Website-Traffic-Generator-With-GUI)
+## Features
 
-The GUI version offers a more streamlined setup process and advanced features for AdSense compatibility.
+- Validates target URLs before generating traffic
+- Simulates organic traffic patterns with randomized timing
+- Rotates user agents to mimic different browsers and devices
+- Uses proxy rotation to avoid IP-based rate limiting (requires proxy list)
+- Real-time dashboard for traffic visualization
+- Local storage to track session progress
+- Configurable visit limits (maximum 500 per session)
 
-## 🔧 Prerequisites
+## Installation
 
-- Windows operating system
-- Python 3.7+ installed
-- Latest version of Chrome browser
-- Chrome WebDriver that matches your Chrome version
-- Basic understanding of command-line interfaces
+1. Clone this repository:
+git clone https://github.com/yourusername/website-traffic-generator.git cd website-traffic-generator
 
-## 🚀 Installation Steps
+2. Install the required dependencies:
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/davytheprogrammer/Website-Traffic-Generator-web-version.git
-   ```
+3. Run the application:
 
-2. **Navigate to the project directory**
-   ```bash
-   cd Website-Traffic-Generator-web-version
-   ```
+4. Access the web interface at `http://localhost:5000`
 
-3. **Create a Python virtual environment (recommended)**
-   ```bash
-   python -m venv venv
-   venv\Scripts\activate
-   ```
 
-4. **Install required dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
+## Configuration
 
-## ⚙️ Configuration
+- Configure proxy settings in proxy_manager.py
+- Add custom user agents in user_agents.py
+- Adjust request timing in traffic_generator.py
 
-1. **Update the ChromeDriver path** in `main.py`:
-   ```python
-   CHROMEDRIVER_PATH = "C:/path/to/your/chromedriver.exe"
-   ```
+## License
 
-2. **Customize traffic parameters** in the `generate_traffic` function inside `app.py` if needed:
-   ```python
-   threads = 10          # Number of concurrent browser instances
-   min_clicks = 2        # Minimum clicks per session
-   timeout = 60          # Page load timeout in seconds
-   max_offset = 10       # Maximum delay between actions
-   ```
+This project is for educational purposes only. Use responsibly.
 
-## 🖥️ Running the Program
+## Author
 
-1. **Start the Flask application**
-   ```bash
-   python app.py
-   ```
-
-2. **Open your browser** and navigate to:
-   ```
-   http://localhost:8080
-   ```
-
-3. **Enter your website** and desired settings in the web interface
-
-4. **Monitor** the ongoing traffic generation through console output
-
-## 🔍 How It Works
-
-The system launches multiple Chrome instances (visible or headless based on configuration) that:
-
-1. Visit your specified website domain
-2. Wait a randomized period to simulate reading content
-3. Find all links on the page that lead to the same domain
-4. Randomly select and click a link to navigate further
-5. Repeat the process for the configured number of clicks
-
-This creates a natural browsing pattern that activates all standard tracking mechanisms like Google Analytics.
-
-## 🛠️ Troubleshooting
-
-- **Chrome version mismatch**: Ensure your ChromeDriver version matches your Chrome browser version
-- **Path issues**: Use absolute paths for ChromeDriver location
-- **Performance concerns**: Reduce thread count if system performance degrades
-
-For technical assistance, please contact:
-📞 **Phone:** +254793609747
-
-## ⚖️ Disclaimer
-
-This tool is intended for educational purposes, website testing, and legitimate traffic simulation only. Always ensure you have proper authorization before using this tool on any website. The developers are not responsible for any misuse of this software.
-
----
-
-## 💖 Support the Project
-
-If you find this tool valuable, consider supporting continued development:
-
-[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-donate-yellow.svg)](https://www.buymeacoffee.com/davy254)
-
-Your contribution helps maintain this free, open-source project. Thank you! 🚀
+Created by [Davis Ogega]

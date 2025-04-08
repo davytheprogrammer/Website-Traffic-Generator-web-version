@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Traffic Generator Dashboard</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header class="my-4 text-center">
+            <h1>Traffic Generator Dashboard</h1>
+            <p class="lead text-muted">Monitoring traffic generation in real-time</p>
+        </header>
+
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="card-title mb-0">Session Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Target URL:
+                                <span class="text-truncate ms-2" style="max-width: 200px;" id="targetUrlDisplay">{{ url }}</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Visits Requested:
+                                <span class="badge bg-primary rounded-pill" id="visitsRequestedDisplay">{{ max_visits }}</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Visits Completed:
+                                <span class="badge bg-success rounded-pill" id="visitsCompletedDisplay">0</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Status:
+                                <span class="badge bg-secondary" id="statusDisplay">Not Started</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Start Time:
+                                <span id="startTimeDisplay">{{ start_time }}</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Elapsed Time:
+                                <span id="elapsedTimeDisplay">00:00:00</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="card-footer">
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-success" id="startButton">
+                                <i class="bi bi-play-fill"></i> Start Generation
+                            </button>
+                            <button class="btn btn-danger" id="stopButton" disabled>
+                                <i class="bi bi-stop-fill"></i> Stop Generation
+                            </button>
+                            <a href="/" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left"></i> Back to Home
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="card-title mb-0">Progress</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="progress" style="height: 25px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                 role="progressbar" id="progressBar"
+                                 style="width: 0%;" 
+                                 aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                        </div>
+                        <div class="text-center mt-2" id="progressText">0 of {{ max_visits }}</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">Visited URLs</h5>
+                        <button class="btn btn-sm btn-light" id="clearLogButton">
+                            <i class="bi bi-trash"></i> Clear Log
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Timestamp</th>
+                                        <th>URL</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="visitedUrlsTable">
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted">No visits recorded yet</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.socket.io/4.4.1/socket.io.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Elements
+            const startButton = document.getElementById('startButton');
+            const stopButton = document.getElementById('stopButton');
+            const clearLogButton = document.getElementById('clearLogButton');
+            const visitsCompletedDisplay = document.getElementById('visitsCompletedDisplay');
+            const statusDisplay = document.getElementById('statusDisplay');
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            const visitedUrlsTable = document.getElementById('visitedUrlsTable');
+            const elapsedTimeDisplay = document.getElementById('elapsedTimeDisplay');
+            
+            // Session variables
+            const targetUrl = "{{ url }}";
+            const maxVisits = JSON.parse('{{ max_visits | tojson | safe }}');
+            let sessionId = null;
+            let visitedUrls = [];
+            let isActive = false;
+            let startTime = null;
+            let timer = null;
+            
+            // Connect to Socket.IO
+            const socket = io();
+            
+            // Load data from local storage
+            loadFromLocalStorage();
+            
+            // Socket.IO events
+            socket.on('connect', function() {
+                console.log('Connected to server');
+            });
+            
+            socket.on('visit_update', function(data) {
+                if (data.session_id === sessionId) {
+                    updateDashboard(data);
+                }
+            });
+            
+            socket.on('generation_complete', function(data) {
+                if (data.session_id === sessionId) {
+                    completeGeneration(data);
+                }
+            });
+            
+            // Button event listeners
+            startButton.addEventListener('click', startGeneration);
+            stopButton.addEventListener('click', stopGeneration);
+            clearLogButton.addEventListener('click', clearLog);
+            
+            function startGeneration() {
+                // Reset UI
+                if (visitedUrls.length > 0 && !confirm('This will clear existing data. Continue?')) {
+                    return;
+                }
+                
+                visitedUrls = [];
+                updateVisitedUrlsTable();
+                
+                // Update UI
+                startButton.disabled = true;
+                stopButton.disabled = false;
+                statusDisplay.textContent = 'Starting...';
+                statusDisplay.className = 'badge bg-warning';
+                
+                // Start timer
+                startTime = new Date();
+                if (timer) clearInterval(timer);
+                timer = setInterval(updateElapsedTime, 1000);
+                
+                // Send request to start traffic generation
+                fetch('/start-traffic', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        url: targetUrl,
+                        visits: maxVisits
+                    }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        sessionId = data.session_id;
+                        isActive = true;
+                        statusDisplay.textContent = 'Running';
+                        statusDisplay.className = 'badge bg-success';
+                        
+                        // Save to local storage
+                        saveToLocalStorage();
+                    } else {
+                        alert('Failed to start traffic generation: ' + data.message);
+                        resetUI();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while starting traffic generation.');
+                    resetUI();
+                });
+            }
+            
+            function stopGeneration() {
+                if (!sessionId) return;
+                
+                fetch('/stop-traffic', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        session_id: sessionId
+                    }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        completeGeneration();
+                    } else {
+                        alert('Failed to stop traffic generation: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while stopping traffic generation.');
+                });
+            }
+            
+            function updateDashboard(data) {
+                // Update counters
+                visitsCompletedDisplay.textContent = data.visits_completed;
+                
+                // Update progress bar
+                const percentage = Math.floor((data.visits_completed / maxVisits) * 100);
+                progressBar.style.width = percentage + '%';
+                progressBar.textContent = percentage + '%';
+                progressText.textContent = `${data.visits_completed} of ${maxVisits}`;
+                
+                // Add new visit to table
+                if (data.visit) {
+                    visitedUrls.push(data.visit);
+                    updateVisitedUrlsTable();
+                    
+                    // Save to local storage
+                    saveToLocalStorage();
+                }
+            }
+            
+            function completeGeneration(data) {
+                isActive = false;
+                statusDisplay.textContent = 'Completed';
+                statusDisplay.className = 'badge bg-info';
+                startButton.disabled = false;
+                stopButton.disabled = true;
+                
+                // Stop timer
+                if (timer) clearInterval(timer);
+                
+                // Update data if provided
+                if (data) {
+                    visitsCompletedDisplay.textContent = data.visits_completed;
+                    const percentage = Math.floor((data.visits_completed / maxVisits) * 100);
+                    progressBar.style.width = percentage + '%';
+                    progressBar.textContent = percentage + '%';
+                    progressText.textContent = `${data.visits_completed} of ${maxVisits}`;
+                }
+                
+                // Save final state to local storage
+                saveToLocalStorage();
+            }
+            
+            function resetUI() {
+                startButton.disabled = false;
+                stopButton.disabled = true;
+                statusDisplay.textContent = 'Not Started';
+                statusDisplay.className = 'badge bg-secondary';
+                
+                // Stop timer
+                if (timer) clearInterval(timer);
+            }
+            
+            function updateVisitedUrlsTable() {
+                if (visitedUrls.length === 0) {
+                    visitedUrlsTable.innerHTML = `
+                        <tr>
+                            <td colspan="4" class="text-center text-muted">No visits recorded yet</td>
+                        </tr>
+                    `;
+                    return;
+                }
+                
+                let html = '';
+                visitedUrls.forEach((visit, index) => {
+                    let statusClass = 'success';
+                    if (visit.status_code >= 400) statusClass = 'danger';
+                    else if (visit.status_code >= 300) statusClass = 'warning';
+                    
+                    html += `
+                        <tr>
+                            <td>${index + 1}</td>
+                            <td>${visit.timestamp}</td>
+                            <td class="text-truncate" style="max-width: 300px;">
+                                <a href="${visit.url}" target="_blank" rel="noopener noreferrer">
+                                    ${visit.url}
+                                </a>
+                            </td>
+                            <td><span class="badge bg-${statusClass}">${visit.status_code}</span></td>
+                        </tr>
+                    `;
+                });
+                
+                visitedUrlsTable.innerHTML = html;
+            }
+            
+            function clearLog() {
+                if (!confirm('Are you sure you want to clear the log?')) return;
+                
+                visitedUrls = [];
+                updateVisitedUrlsTable();
+                
+                // Clear local storage
+                localStorage.removeItem('traffic_generator_data');
+            }
+            
+            function updateElapsedTime() {
+                if (!startTime) return;
+                
+                const now = new Date();
+                const elapsed = new Date(now - startTime);
+                
+                // Format as HH:MM:SS
+                const hours = String(Math.floor(elapsed / 3600000)).padStart(2, '0');
+                const minutes = String(Math.floor((elapsed % 3600000) / 60000)).padStart(2, '0');
+                const seconds = String(Math.floor((elapsed % 60000) / 1000)).padStart(2, '0');
+                
+                elapsedTimeDisplay.textContent = `${hours}:${minutes}:${seconds}`;
+            }
+            
+            function saveToLocalStorage() {
+                const data = {
+                    targetUrl,
+                    maxVisits,
+                    sessionId,
+                    visitedUrls,
+                    isActive,
+                    startTime: startTime ? startTime.toISOString() : null,
+                    lastUpdated: new Date().toISOString()
+                };
+                
+                localStorage.setItem('traffic_generator_data', JSON.stringify(data));
+            }
+            
+            function loadFromLocalStorage() {
+                const savedData = localStorage.getItem('traffic_generator_data');
+                if (!savedData) return;
+                
+                try {
+                    const data = JSON.parse(savedData);
+                    
+                    // Only load if for the same target URL
+                    if (data.targetUrl === targetUrl) {
+                        sessionId = data.sessionId;
+                        visitedUrls = data.visitedUrls || [];
+                        isActive = data.isActive;
+                        
+                        if (data.startTime) {
+                            startTime = new Date(data.startTime);
+                            timer = setInterval(updateElapsedTime, 1000);
+                        }
+                        
+                        // Update UI
+                        visitsCompletedDisplay.textContent = visitedUrls.length;
+                        const percentage = Math.floor((visitedUrls.length / maxVisits) * 100);
+                        progressBar.style.width = percentage + '%';
+                        progressBar.textContent = percentage + '%';
+                        progressText.textContent = `${visitedUrls.length} of ${maxVisits}`;
+                        
+                        updateVisitedUrlsTable();
+                        
+                        if (isActive) {
+                            statusDisplay.textContent = 'Running';
+                            statusDisplay.className = 'badge bg-success';
+                            startButton.disabled = true;
+                            stopButton.disabled = false;
+                            
+                            // Check if session is still active on server
+                            fetch(`/session-status/${sessionId}`)
+                                .then(response => response.json())
+                                .then(data => {
+                                    if (!data.active) {
+                                        completeGeneration();
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('Error checking session status:', error);
+                                    completeGeneration();
+                                });
+                        } else {
+                            statusDisplay.textContent = 'Completed';
+                            statusDisplay.className = 'badge bg-info';
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error loading from local storage:', error);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
