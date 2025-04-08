@@ -7,16 +7,28 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <div class="container">
+    <div class="container-fluid">
         <header class="my-4 text-center">
             <h1>Traffic Generator Dashboard</h1>
             <p class="lead text-muted">Monitoring traffic generation in real-time</p>
+            
+            <!-- VPN Alert -->
+            <div class="alert alert-info" role="alert">
+                <i class="bi bi-shield-lock"></i> <strong>Using a VPN is highly recommended</strong> to protect your IP address from being flagged or banned.
+            </div>
         </header>
 
+        <!-- Error Alert -->
+        <div class="alert alert-danger alert-dismissible fade show d-none" role="alert" id="errorAlert">
+            <strong>Error:</strong> <span id="errorMessage"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+
         <div class="row">
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <div class="card mb-4">
                     <div class="card-header bg-primary text-white">
                         <h5 class="card-title mb-0">Session Information</h5>
@@ -47,6 +59,10 @@
                                 Elapsed Time:
                                 <span id="elapsedTimeDisplay">00:00:00</span>
                             </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Discovered URLs:
+                                <span class="badge bg-info rounded-pill" id="discoveredUrlsDisplay">0</span>
+                            </li>
                         </ul>
                     </div>
                     <div class="card-footer">
@@ -76,12 +92,31 @@
                                  aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
                         </div>
                         <div class="text-center mt-2" id="progressText">0 of {{ max_visits }}</div>
+                        
+                        <!-- Current Action Display -->
+                        <div class="mt-3 text-center">
+                            <small class="text-muted">Current Action:</small>
+                            <div id="currentActionDisplay" class="fw-bold">Waiting to start</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Connection Info Card -->
+                <div class="card mb-4">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="card-title mb-0">Connection Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-0"><strong>Connection Type:</strong> <span id="connectionTypeDisplay">Direct (No Proxy)</span></p>
+                        <div class="alert alert-warning mt-2 mb-0 py-2 small">
+                            <i class="bi bi-exclamation-triangle"></i> Using your real IP address may lead to it being flagged or blocked. Consider using a VPN.
+                        </div>
                     </div>
                 </div>
             </div>
             
-            <div class="col-md-8">
-                <div class="card">
+            <div class="col-md-6">
+                <div class="card mb-4">
                     <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                         <h5 class="card-title mb-0">Visited URLs</h5>
                         <button class="btn btn-sm btn-light" id="clearLogButton">
@@ -95,7 +130,7 @@
                                     <tr>
                                         <th>#</th>
                                         <th>Timestamp</th>
-                                        <th>URL</th>
+                                        <th>URL / Page Title</th>
                                         <th>Status</th>
                                     </tr>
                                 </thead>
@@ -108,8 +143,87 @@
                         </div>
                     </div>
                 </div>
+                
+                <!-- URL Discovery Preview -->
+                <div class="card mb-4">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="card-title mb-0">URL Discovery</h5>
+                    </div>
+                    <div class="card-body">
+                        <p>This tool automatically discovers URLs on the target website to create more natural browsing patterns.</p>
+                        <div id="urlDiscoveryStats">
+                            <div class="d-flex justify-content-between">
+                                <span>Initial URLs discovered:</span>
+                                <span id="initialUrlsCount" class="badge bg-info">0</span>
+                            </div>
+                            <div class="d-flex justify-content-between mt-2">
+                                <span>New URLs discovered during generation:</span>
+                                <span id="newUrlsCount" class="badge bg-success">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <!-- Stats Card -->
+                <div class="card mb-4">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="card-title mb-0">Traffic Statistics</h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="statusCodeChart" height="200"></canvas>
+                        <hr>
+                        <h6 class="card-subtitle mb-2 text-muted">Traffic Summary</h6>
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Successful Requests:
+                                <span class="badge bg-success rounded-pill" id="successfulRequests">0</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Redirected Requests:
+                                <span class="badge bg-warning rounded-pill" id="redirectedRequests">0</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Failed Requests:
+                                <span class="badge bg-danger rounded-pill" id="failedRequests">0</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Unique URLs Visited:
+                                <span class="badge bg-info rounded-pill" id="uniqueUrlsVisited">0</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Avg. Time Between Visits:
+                                <span id="avgTimeBetweenVisits">0s</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <!-- Real-time Activity Feed -->
+                <div class="card mb-4">
+                    <div class="card-header bg-dark text-white">
+                        <h5 class="card-title mb-0">Activity Feed</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="activityFeed" class="list-group list-group-flush" style="max-height: 300px; overflow-y: auto;">
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between">
+                                    <span class="badge bg-secondary">System</span>
+                                    <small class="text-muted">Just now</small>
+                                </div>
+                                <p class="mb-0 mt-1">Waiting to start traffic generation...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
+        
+        <footer class="my-3 pt-3 text-muted text-center text-small">
+            <p class="mb-1">&copy; 2025 Website Traffic Generator</p>
+            <p>Current User: {{ current_user }} | Last Updated: {{ current_time }}</p>
+        </footer>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -126,18 +240,46 @@
             const progressText = document.getElementById('progressText');
             const visitedUrlsTable = document.getElementById('visitedUrlsTable');
             const elapsedTimeDisplay = document.getElementById('elapsedTimeDisplay');
+            const errorAlert = document.getElementById('errorAlert');
+            const errorMessage = document.getElementById('errorMessage');
+            const connectionTypeDisplay = document.getElementById('connectionTypeDisplay');
+            const currentActionDisplay = document.getElementById('currentActionDisplay');
+            const activityFeed = document.getElementById('activityFeed');
+            const discoveredUrlsDisplay = document.getElementById('discoveredUrlsDisplay');
+            const initialUrlsCount = document.getElementById('initialUrlsCount');
+            const newUrlsCount = document.getElementById('newUrlsCount');
+            
+            // Statistics elements
+            const successfulRequests = document.getElementById('successfulRequests');
+            const redirectedRequests = document.getElementById('redirectedRequests');
+            const failedRequests = document.getElementById('failedRequests');
+            const uniqueUrlsVisited = document.getElementById('uniqueUrlsVisited');
+            const avgTimeBetweenVisits = document.getElementById('avgTimeBetweenVisits');
             
             // Session variables
             const targetUrl = "{{ url }}";
-            const maxVisits = JSON.parse('{{ max_visits | tojson | safe }}');
+            const maxVisits = parseInt("{{ max_visits|default(0) }}");
             let sessionId = null;
             let visitedUrls = [];
             let isActive = false;
             let startTime = null;
             let timer = null;
+            let lastErrorTime = 0; // To prevent error message spam
+            let discoveredUrls = [];
+            let initialUrlCount = 0;
+            let newUrlsDiscovered = 0;
+            
+            // Charts
+            let statusCodeChart = null;
             
             // Connect to Socket.IO
             const socket = io();
+            
+            // Initialize chart
+            initializeCharts();
+            
+            // Load discovered URLs from session storage if available
+            loadDiscoveredUrls();
             
             // Load data from local storage
             loadFromLocalStorage();
@@ -145,17 +287,98 @@
             // Socket.IO events
             socket.on('connect', function() {
                 console.log('Connected to server');
+                addActivityFeedItem('System', 'Connected to server');
             });
             
             socket.on('visit_update', function(data) {
                 if (data.session_id === sessionId) {
                     updateDashboard(data);
+                    
+                    // Update discovered URLs count
+                    if (data.discovered_urls_count) {
+                        discoveredUrlsDisplay.textContent = data.discovered_urls_count;
+                        
+                        // Calculate new URLs discovered during the process
+                        if (initialUrlCount > 0) {
+                            newUrlsDiscovered = data.discovered_urls_count - initialUrlCount;
+                            newUrlsCount.textContent = newUrlsDiscovered;
+                        }
+                    }
+                }
+            });
+            
+            socket.on('visit_preparing', function(data) {
+                if (data.session_id === sessionId) {
+                    currentActionDisplay.textContent = `Visiting: ${truncateUrl(data.url, 40)}`;
+                    
+                    // Update connection display
+                    if (data.using_proxy) {
+                        connectionTypeDisplay.textContent = 'Using Proxy';
+                        connectionTypeDisplay.className = 'text-success';
+                    } else {
+                        connectionTypeDisplay.textContent = 'Direct (No Proxy)';
+                        connectionTypeDisplay.className = 'text-warning';
+                    }
+                    
+                    addActivityFeedItem('Info', `Preparing to visit: ${truncateUrl(data.url, 30)}`);
+                }
+            });
+            
+            socket.on('waiting_update', function(data) {
+                if (data.session_id === sessionId) {
+                    currentActionDisplay.textContent = `Waiting ${data.wait_time}s - ${data.next_action}`;
+                    addActivityFeedItem('Wait', `Waiting ${data.wait_time}s before next action`);
+                }
+            });
+            
+            socket.on('links_discovered', function(data) {
+                if (data.session_id === sessionId) {
+                    addActivityFeedItem('Discovery', `Found ${data.link_count} links on ${truncateUrl(data.source_url, 30)}`);
                 }
             });
             
             socket.on('generation_complete', function(data) {
                 if (data.session_id === sessionId) {
                     completeGeneration(data);
+                    addActivityFeedItem('System', 'Traffic generation completed');
+                    
+                    // Update statistics if provided
+                    if (data.statistics) {
+                        updateStatistics(data.statistics);
+                    }
+                }
+            });
+            
+            socket.on('visit_error', function(data) {
+                if (data.session_id === sessionId) {
+                    // Don't show too many errors too quickly
+                    const now = Date.now();
+                    if (now - lastErrorTime > 5000) { // Only show errors at most every 5 seconds
+                        lastErrorTime = now;
+                        showError(`Error visiting ${data.url}: ${data.error}`);
+                        addActivityFeedItem('Error', `Failed to visit: ${truncateUrl(data.url, 30)}`);
+                    }
+                }
+            });
+            
+            socket.on('generation_error', function(data) {
+                if (data.session_id === sessionId) {
+                    completeGeneration();
+                    showError(data.message);
+                    addActivityFeedItem('Error', data.message);
+                }
+            });
+            
+            socket.on('generation_start', function(data) {
+                if (data.session_id === sessionId) {
+                    // Update initial URL count
+                    if (data.url_count) {
+                        initialUrlCount = data.url_count;
+                        initialUrlsCount.textContent = initialUrlCount;
+                        discoveredUrlsDisplay.textContent = initialUrlCount;
+                    }
+                    
+                    addActivityFeedItem('System', `Starting traffic generation for ${truncateUrl(data.base_url, 30)}`);
                 }
             });
             
@@ -173,16 +396,29 @@
                 visitedUrls = [];
                 updateVisitedUrlsTable();
                 
+                // Reset statistics
+                resetStatistics();
+                
                 // Update UI
                 startButton.disabled = true;
                 stopButton.disabled = false;
                 statusDisplay.textContent = 'Starting...';
                 statusDisplay.className = 'badge bg-warning';
                 
+                // Hide any previous errors
+                errorAlert.classList.add('d-none');
+                
                 // Start timer
                 startTime = new Date();
                 if (timer) clearInterval(timer);
                 timer = setInterval(updateElapsedTime, 1000);
+                
+                // Set default connection type
+                connectionTypeDisplay.textContent = 'Direct (No Proxy)';
+                connectionTypeDisplay.className = 'text-dark';
+                
+                // Add to activity feed
+                addActivityFeedItem('System', 'Initializing traffic generation...');
                 
                 // Send request to start traffic generation
                 fetch('/start-traffic', {
@@ -192,7 +428,8 @@
                     },
                     body: JSON.stringify({
                         url: targetUrl,
-                        visits: maxVisits
+                        visits: maxVisits,
+                        url_list: discoveredUrls
                     }),
                 })
                 .then(response => response.json())
@@ -206,13 +443,13 @@
                         // Save to local storage
                         saveToLocalStorage();
                     } else {
-                        alert('Failed to start traffic generation: ' + data.message);
+                        showError('Failed to start traffic generation: ' + data.message);
                         resetUI();
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert('An error occurred while starting traffic generation.');
+                    showError('An error occurred while starting traffic generation.');
                     resetUI();
                 });
             }
@@ -233,13 +470,14 @@
                 .then(data => {
                     if (data.success) {
                         completeGeneration();
+                        addActivityFeedItem('System', 'Traffic generation stopped by user');
                     } else {
-                        alert('Failed to stop traffic generation: ' + data.message);
+                        showError('Failed to stop traffic generation: ' + data.message);
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert('An error occurred while stopping traffic generation.');
+                    showError('An error occurred while stopping traffic generation.');
                 });
             }
             
@@ -258,9 +496,40 @@
                     visitedUrls.push(data.visit);
                     updateVisitedUrlsTable();
                     
+                    // Update statistics
+                    updateVisitStats(data.visit);
+                    
+                    // Add to activity feed
+                    const statusClass = getStatusClass(data.visit.status_code);
+                    addActivityFeedItem(
+                        statusClass.charAt(0).toUpperCase() + statusClass.slice(1), 
+                        `Visited: ${truncateUrl(data.visit.url, 30)}`
+                    );
+                    
                     // Save to local storage
                     saveToLocalStorage();
                 }
+            }
+            
+            function updateVisitStats(visit) {
+                // Count by status code
+                const statusCode = visit.status_code;
+                
+                // Update counters
+                if (statusCode >= 200 && statusCode < 300) {
+                    successfulRequests.textContent = parseInt(successfulRequests.textContent) + 1;
+                } else if (statusCode >= 300 && statusCode < 400) {
+                    redirectedRequests.textContent = parseInt(redirectedRequests.textContent) + 1;
+                } else {
+                    failedRequests.textContent = parseInt(failedRequests.textContent) + 1;
+                }
+                
+                // Update unique URLs count
+                const uniqueUrls = new Set(visitedUrls.map(v => v.url));
+                uniqueUrlsVisited.textContent = uniqueUrls.size;
+                
+                // Update chart
+                updateStatusCodeChart();
             }
             
             function completeGeneration(data) {
@@ -269,6 +538,7 @@
                 statusDisplay.className = 'badge bg-info';
                 startButton.disabled = false;
                 stopButton.disabled = true;
+                currentActionDisplay.textContent = 'Traffic generation completed';
                 
                 // Stop timer
                 if (timer) clearInterval(timer);
@@ -291,6 +561,7 @@
                 stopButton.disabled = true;
                 statusDisplay.textContent = 'Not Started';
                 statusDisplay.className = 'badge bg-secondary';
+                currentActionDisplay.textContent = 'Waiting to start';
                 
                 // Stop timer
                 if (timer) clearInterval(timer);
@@ -308,18 +579,24 @@
                 
                 let html = '';
                 visitedUrls.forEach((visit, index) => {
-                    let statusClass = 'success';
-                    if (visit.status_code >= 400) statusClass = 'danger';
-                    else if (visit.status_code >= 300) statusClass = 'warning';
+                    let statusClass = getStatusClass(visit.status_code);
+                    
+                    // Format title/URL for display
+                    let urlDisplay = visit.url;
+                    let titleDisplay = '';
+                    if (visit.page_title) {
+                        titleDisplay = `<br><small class="text-muted">${visit.page_title}</small>`;
+                    }
                     
                     html += `
                         <tr>
                             <td>${index + 1}</td>
                             <td>${visit.timestamp}</td>
-                            <td class="text-truncate" style="max-width: 300px;">
+                            <td class="text-break">
                                 <a href="${visit.url}" target="_blank" rel="noopener noreferrer">
-                                    ${visit.url}
+                                    ${truncateUrl(urlDisplay, 60)}
                                 </a>
+                                ${titleDisplay}
                             </td>
                             <td><span class="badge bg-${statusClass}">${visit.status_code}</span></td>
                         </tr>
@@ -329,14 +606,26 @@
                 visitedUrlsTable.innerHTML = html;
             }
             
+            function getStatusClass(statusCode) {
+                if (statusCode >= 200 && statusCode < 300) return 'success';
+                if (statusCode >= 300 && statusCode < 400) return 'warning';
+                if (statusCode >= 400 && statusCode < 500) return 'danger';
+                if (statusCode >= 500) return 'dark';
+                return 'secondary';
+            }
+            
             function clearLog() {
                 if (!confirm('Are you sure you want to clear the log?')) return;
                 
                 visitedUrls = [];
                 updateVisitedUrlsTable();
+                resetStatistics();
                 
                 // Clear local storage
                 localStorage.removeItem('traffic_generator_data');
+                
+                // Add to activity feed
+                addActivityFeedItem('System', 'Log cleared by user');
             }
             
             function updateElapsedTime() {
@@ -353,6 +642,53 @@
                 elapsedTimeDisplay.textContent = `${hours}:${minutes}:${seconds}`;
             }
             
+            function showError(message) {
+                errorMessage.textContent = message;
+                errorAlert.classList.remove('d-none');
+                
+                // Auto-hide after 10 seconds
+                setTimeout(() => {
+                    errorAlert.classList.add('d-none');
+                }, 10000);
+            }
+            
+            function addActivityFeedItem(type, message) {
+                // Create badge class based on type
+                let badgeClass = 'bg-secondary';
+                switch (type.toLowerCase()) {
+                    case 'system': badgeClass = 'bg-secondary'; break;
+                    case 'info': badgeClass = 'bg-info'; break;
+                    case 'success': badgeClass = 'bg-success'; break;
+                    case 'warning': badgeClass = 'bg-warning'; break;
+                    case 'error': badgeClass = 'bg-danger'; break;
+                    case 'discovery': badgeClass = 'bg-primary'; break;
+                    case 'wait': badgeClass = 'bg-light text-dark'; break;
+                }
+                
+                // Get current time
+                const now = new Date();
+                const timeString = now.toLocaleTimeString();
+                
+                // Create new item
+                const newItem = document.createElement('div');
+                newItem.className = 'list-group-item';
+                newItem.innerHTML = `
+                    <div class="d-flex justify-content-between">
+                        <span class="badge ${badgeClass}">${type}</span>
+                        <small class="text-muted">${timeString}</small>
+                    </div>
+                    <p class="mb-0 mt-1">${message}</p>
+                `;
+                
+                // Add to top of feed
+                activityFeed.insertBefore(newItem, activityFeed.firstChild);
+                
+                // Limit to 50 items
+                if (activityFeed.children.length > 50) {
+                    activityFeed.removeChild(activityFeed.lastChild);
+                }
+            }
+            
             function saveToLocalStorage() {
                 const data = {
                     targetUrl,
@@ -361,7 +697,15 @@
                     visitedUrls,
                     isActive,
                     startTime: startTime ? startTime.toISOString() : null,
-                    lastUpdated: new Date().toISOString()
+                    lastUpdated: new Date().toISOString(),
+                    statistics: {
+                        successful: parseInt(successfulRequests.textContent),
+                        redirected: parseInt(redirectedRequests.textContent),
+                        failed: parseInt(failedRequests.textContent),
+                        unique: parseInt(uniqueUrlsVisited.textContent)
+                    },
+                    initialUrlCount,
+                    newUrlsDiscovered
                 };
                 
                 localStorage.setItem('traffic_generator_data', JSON.stringify(data));
@@ -379,6 +723,8 @@
                         sessionId = data.sessionId;
                         visitedUrls = data.visitedUrls || [];
                         isActive = data.isActive;
+                        initialUrlCount = data.initialUrlCount || 0;
+                        newUrlsDiscovered = data.newUrlsDiscovered || 0;
                         
                         if (data.startTime) {
                             startTime = new Date(data.startTime);
@@ -392,13 +738,31 @@
                         progressBar.textContent = percentage + '%';
                         progressText.textContent = `${visitedUrls.length} of ${maxVisits}`;
                         
+                        // Update stats
+                        if (data.statistics) {
+                            successfulRequests.textContent = data.statistics.successful || 0;
+                            redirectedRequests.textContent = data.statistics.redirected || 0;
+                            failedRequests.textContent = data.statistics.failed || 0;
+                            uniqueUrlsVisited.textContent = data.statistics.unique || 0;
+                        }
+                        
+                        // Update URL discovery
+                        initialUrlsCount.textContent = initialUrlCount;
+                        newUrlsCount.textContent = newUrlsDiscovered;
+                        discoveredUrlsDisplay.textContent = initialUrlCount + newUrlsDiscovered;
+                        
                         updateVisitedUrlsTable();
+                        updateStatusCodeChart();
                         
                         if (isActive) {
                             statusDisplay.textContent = 'Running';
                             statusDisplay.className = 'badge bg-success';
                             startButton.disabled = true;
                             stopButton.disabled = false;
+                            currentActionDisplay.textContent = 'Resuming traffic generation...';
+                            
+                            // Add to activity feed
+                            addActivityFeedItem('System', 'Resuming previous session');
                             
                             // Check if session is still active on server
                             fetch(`/session-status/${sessionId}`)
@@ -406,6 +770,7 @@
                                 .then(data => {
                                     if (!data.active) {
                                         completeGeneration();
+                                        addActivityFeedItem('System', 'Previous session has ended');
                                     }
                                 })
                                 .catch(error => {
@@ -415,10 +780,178 @@
                         } else {
                             statusDisplay.textContent = 'Completed';
                             statusDisplay.className = 'badge bg-info';
+                            currentActionDisplay.textContent = 'Traffic generation completed';
+                            
+                            // Add to activity feed
+                            addActivityFeedItem('System', 'Loaded completed session from storage');
                         }
                     }
                 } catch (error) {
                     console.error('Error loading from local storage:', error);
+                }
+            }
+            
+            function loadDiscoveredUrls() {
+                const savedUrls = sessionStorage.getItem('discoveredUrls');
+                if (savedUrls) {
+                    try {
+                        discoveredUrls = JSON.parse(savedUrls);
+                        initialUrlCount = discoveredUrls.length;
+                        initialUrlsCount.textContent = initialUrlCount;
+                        discoveredUrlsDisplay.textContent = initialUrlCount;
+                        
+                        // Add to activity feed
+                        addActivityFeedItem('Discovery', `Loaded ${initialUrlCount} pre-discovered URLs`);
+                    } catch (error) {
+                        console.error('Error loading discovered URLs:', error);
+                    }
+                }
+            }
+            
+            function initializeCharts() {
+                const ctx = document.getElementById('statusCodeChart').getContext('2d');
+                statusCodeChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Success (2xx)', 'Redirect (3xx)', 'Client Error (4xx)', 'Server Error (5xx)'],
+                        datasets: [{
+                            data: [0, 0, 0, 0],
+                            backgroundColor: [
+                                'rgba(40, 167, 69, 0.7)',  // success
+                                'rgba(255, 193, 7, 0.7)',  // warning
+                                'rgba(220, 53, 69, 0.7)',  // danger
+                                'rgba(52, 58, 64, 0.7)'    // dark
+                            ],
+                            borderColor: [
+                                'rgba(40, 167, 69, 1)',
+                                'rgba(255, 193, 7, 1)',
+                                'rgba(220, 53, 69, 1)',
+                                'rgba(52, 58, 64, 1)'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    boxWidth: 15,
+                                    font: {
+                                        size: 10
+                                    }
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Status Code Distribution',
+                                font: {
+                                    size: 14
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            function updateStatusCodeChart() {
+                // Count status codes
+                let success = 0;
+                let redirect = 0;
+                let clientError = 0;
+                let serverError = 0;
+                
+                visitedUrls.forEach(visit => {
+                    const status = visit.status_code;
+                    if (status >= 200 && status < 300) success++;
+                    else if (status >= 300 && status < 400) redirect++;
+                    else if (status >= 400 && status < 500) clientError++;
+                    else if (status >= 500) serverError++;
+                });
+                
+                // Update chart data
+                statusCodeChart.data.datasets[0].data = [success, redirect, clientError, serverError];
+                statusCodeChart.update();
+            }
+            
+            function updateStatistics(statistics) {
+                if (statistics.avg_time_between_visits) {
+                    avgTimeBetweenVisits.textContent = `${statistics.avg_time_between_visits}s`;
+                }
+                
+                if (statistics.unique_urls_visited) {
+                    uniqueUrlsVisited.textContent = statistics.unique_urls_visited;
+                }
+                
+                if (statistics.status_code_distribution) {
+                    // Calculate totals by category
+                    let success = 0;
+                    let redirect = 0;
+                    let clientError = 0;
+                    let serverError = 0;
+                    
+                    Object.entries(statistics.status_code_distribution).forEach(([code, count]) => {
+                        code = parseInt(code);
+                        if (code >= 200 && code < 300) success += count;
+                        else if (code >= 300 && code < 400) redirect += count;
+                        else if (code >= 400 && code < 500) clientError += count;
+                        else if (code >= 500) serverError += count;
+                    });
+                    
+                    // Update counters
+                    successfulRequests.textContent = success;
+                    redirectedRequests.textContent = redirect;
+                    failedRequests.textContent = clientError + serverError;
+                    
+                    // Update chart data
+                    statusCodeChart.data.datasets[0].data = [success, redirect, clientError, serverError];
+                    statusCodeChart.update();
+                }
+                
+                // Add to activity feed
+                addActivityFeedItem('System', `Traffic statistics updated`);
+            }
+            
+            function resetStatistics() {
+                successfulRequests.textContent = '0';
+                redirectedRequests.textContent = '0';
+                failedRequests.textContent = '0';
+                uniqueUrlsVisited.textContent = '0';
+                avgTimeBetweenVisits.textContent = '0s';
+                
+                // Reset chart data
+                statusCodeChart.data.datasets[0].data = [0, 0, 0, 0];
+                statusCodeChart.update();
+            }
+            
+            function truncateUrl(url, maxLength) {
+                if (!url) return '';
+                if (url.length <= maxLength) return url;
+                
+                // Extract domain
+                try {
+                    const urlObj = new URL(url);
+                    const domain = urlObj.hostname;
+                    
+                    // If the domain is already too long
+                    if (domain.length >= maxLength - 3) {
+                        return domain.substring(0, maxLength - 3) + '...';
+                    }
+                    
+                    // Otherwise truncate the path
+                    const path = urlObj.pathname;
+                    const available = maxLength - domain.length - 3; // -3 for '...'
+                    
+                    if (available <= 5) {
+                        // Not enough space for meaningful path
+                        return domain + '...';
+                    }
+                    
+                    return domain + path.substring(0, available) + '...';
+                } catch (e) {
+                    // Fallback if URL parsing fails
+                    return url.substring(0, maxLength - 3) + '...';
                 }
             }
         });

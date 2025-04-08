@@ -1,16 +1,8 @@
 import random
-from fake_useragent import UserAgent
 import os
 
-# Try to create a user agent rotator
-try:
-    ua = UserAgent(fallback=True)
-    ua_generator_available = True
-except:
-    ua_generator_available = False
-
 # Fallback list of common user agents
-FALLBACK_USER_AGENTS = [
+COMMON_USER_AGENTS = [
     # Chrome on Windows
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36",
@@ -60,26 +52,19 @@ def get_random_user_agent():
     Returns:
         str: A random user agent string
     """
-    # Try using fake-useragent if available
-    if ua_generator_available:
-        try:
-            return ua.random
-        except:
-            pass
-    
     # Use custom agents if available
     if CUSTOM_USER_AGENTS:
         return random.choice(CUSTOM_USER_AGENTS)
     
     # Fall back to predefined list
-    return random.choice(FALLBACK_USER_AGENTS)
+    return random.choice(COMMON_USER_AGENTS)
 
 def get_desktop_user_agent():
     """Get a random desktop user agent"""
-    desktop_agents = [ua for ua in FALLBACK_USER_AGENTS if "Mobile" not in ua and "Android" not in ua]
+    desktop_agents = [ua for ua in COMMON_USER_AGENTS if "Mobile" not in ua and "Android" not in ua]
     return random.choice(desktop_agents)
 
 def get_mobile_user_agent():
     """Get a random mobile user agent"""
-    mobile_agents = [ua for ua in FALLBACK_USER_AGENTS if "Mobile" in ua or "Android" in ua]
+    mobile_agents = [ua for ua in COMMON_USER_AGENTS if "Mobile" in ua or "Android" in ua]
     return random.choice(mobile_agents)

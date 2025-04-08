@@ -9,6 +9,7 @@ from datetime import datetime
 # Import custom modules
 from url_validator import validate_url
 from traffic_generator import TrafficGenerator
+from url_analyzer import discover_urls
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
@@ -17,18 +18,22 @@ socketio = SocketIO(app)
 # Active traffic generation sessions
 active_sessions = {}
 
+# Current user and time information
+CURRENT_USER = "davytheprogrammer"
+CURRENT_TIME = "2025-04-08 11:11:10"
+
 @app.route('/')
 def index():
     """Main page with disclaimer and input form"""
     # Check if user has acknowledged disclaimer
     if not session.get('disclaimer_accepted', False):
         return redirect(url_for('disclaimer'))
-    return render_template('index.html')
+    return render_template('index.html', current_user=CURRENT_USER, current_time=CURRENT_TIME)
 
 @app.route('/disclaimer')
 def disclaimer():
     """Disclaimer page that users must accept before using the tool"""
-    return render_template('disclaimer.html')
+    return render_template('disclaimer.html', current_user=CURRENT_USER, current_time=CURRENT_TIME)
 
 @app.route('/accept-disclaimer', methods=['POST'])
 def accept_disclaimer():
@@ -50,6 +55,28 @@ def validate_url_endpoint():
         'message': message
     })
 
+@app.route('/discover-urls', methods=['POST'])
+def discover_urls_endpoint():
+    """Endpoint to discover URLs on a website"""
+    data = request.json
+    url = data.get('url', '')
+    
+    try:
+        # Discover URLs (limit to 100 for performance)
+        urls = discover_urls(url, max_depth=1, max_urls=100)
+        
+        return jsonify({
+            'success': True,
+            'url_count': len(urls),
+            'urls': urls[:100]  # Limit response size
+        })
+    except Exception as e:
+        app.logger.error(f"Error discovering URLs: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f"Error discovering URLs: {str(e)}"
+        })
+
 @app.route('/dashboard')
 def dashboard():
     """Dashboard page for visualizing traffic generation"""
@@ -65,7 +92,9 @@ def dashboard():
         'dashboard.html', 
         url=url, 
         max_visits=visit_count,
-        start_time=datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+        start_time=datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
+        current_user=CURRENT_USER,
+        current_time=CURRENT_TIME
     )
 
 @app.route('/start-traffic', methods=['POST'])
@@ -74,6 +103,7 @@ def start_traffic():
     data = request.json
     url = data.get('url', '')
     visit_count = data.get('visits', 0)
+    url_list = data.get('url_list', [])
     
     # Validate inputs
     if not url or visit_count <= 0 or visit_count > 500:
@@ -82,8 +112,8 @@ def start_traffic():
     # Generate unique session ID
     session_id = f"{int(time.time())}-{os.urandom(4).hex()}"
     
-    # Create traffic generator
-    generator = TrafficGenerator(url, visit_count, session_id, socketio)
+    # Create traffic generator with discovered URL list if available
+    generator = TrafficGenerator(url, visit_count, session_id, socketio, url_list)
     
     # Start generation in a separate thread
     thread = threading.Thread(target=generator.start)

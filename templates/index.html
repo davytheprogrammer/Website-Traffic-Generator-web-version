@@ -15,6 +15,9 @@
             <div class="alert alert-warning mt-3">
                 <strong>Educational Purposes Only:</strong> This tool is for educational purposes. Only use on websites you own or have permission to test.
             </div>
+            <div class="alert alert-info">
+                <strong>VPN Recommended:</strong> For best results and to protect your privacy, we recommend using a VPN while generating traffic.
+            </div>
         </header>
 
         <div class="row justify-content-center">
@@ -52,9 +55,43 @@
                     </div>
                     <div class="card-body">
                         <p id="validationMessage"></p>
-                        <div class="d-grid gap-2" id="startButtonContainer">
+                        
+                        <!-- URL Analysis Results -->
+                        <div id="urlAnalysisSection" class="d-none">
+                            <hr>
+                            <h6>Website Analysis:</h6>
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between">
+                                    <span>Discovered URLs:</span>
+                                    <span id="discoveredUrlsCount" class="badge bg-info">0</span>
+                                </div>
+                                <div class="progress mt-1">
+                                    <div class="progress-bar bg-info" id="discoveredUrlsProgress" role="progressbar" style="width: 0%"></div>
+                                </div>
+                            </div>
+                            <p class="text-muted small">These URLs will be used to generate traffic patterns.</p>
+                        </div>
+                        
+                        <div class="d-grid gap-2 mt-3" id="startButtonContainer">
                             <button class="btn btn-success" id="startButton">Start Generating Traffic</button>
                         </div>
+                    </div>
+                </div>
+                
+                <!-- VPN Recommendation Panel -->
+                <div class="card mt-4">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="card-title mb-0">Best Practices</h5>
+                    </div>
+                    <div class="card-body">
+                        <h6><i class="bi bi-shield-check"></i> Use a VPN for Protection</h6>
+                        <p>We strongly recommend using a VPN service when generating traffic to:</p>
+                        <ul>
+                            <li>Protect your real IP address from potential bans</li>
+                            <li>Avoid detection by advanced bot-detection systems</li>
+                            <li>Ensure your privacy is maintained throughout the process</li>
+                        </ul>
+                        <p class="text-muted small">This tool will work without a VPN, but for best results and to protect your identity, a VPN is recommended.</p>
                     </div>
                 </div>
             </div>
@@ -62,6 +99,8 @@
         
         <footer class="my-5 pt-5 text-muted text-center text-small">
             <p class="mb-1">&copy; 2025 Website Traffic Generator</p>
+            <p>Current User: {{ current_user }}</p>
+            <p>Last Updated: {{ current_time }}</p>
             <ul class="list-inline">
                 <li class="list-inline-item"><a href="#" id="showDisclaimerLink">View Disclaimer</a></li>
             </ul>
@@ -108,6 +147,9 @@
             const validationMessage = document.getElementById('validationMessage');
             const startButton = document.getElementById('startButton');
             const showDisclaimerLink = document.getElementById('showDisclaimerLink');
+            const urlAnalysisSection = document.getElementById('urlAnalysisSection');
+            const discoveredUrlsCount = document.getElementById('discoveredUrlsCount');
+            const discoveredUrlsProgress = document.getElementById('discoveredUrlsProgress');
             
             // Initialize Bootstrap modal
             const disclaimerModal = new bootstrap.Modal(document.getElementById('disclaimerModal'));
@@ -128,6 +170,7 @@
                 
                 // Hide previous validation result
                 validationResult.classList.add('d-none');
+                urlAnalysisSection.classList.add('d-none');
                 
                 // Send validation request
                 fetch('/validate-url', {
@@ -147,6 +190,9 @@
                         validationTitle.textContent = 'URL is Valid';
                         validationMessage.textContent = data.message;
                         startButton.style.display = 'block';
+                        
+                        // Start URL discovery process
+                        startUrlDiscovery(url);
                     } else {
                         validationHeader.className = 'card-header bg-danger text-white';
                         validationTitle.textContent = 'URL is Invalid';
@@ -168,6 +214,44 @@
                     validateButton.innerHTML = 'Validate URL';
                 });
             });
+            
+            function startUrlDiscovery(url) {
+                // Show the URL analysis section
+                urlAnalysisSection.classList.remove('d-none');
+                discoveredUrlsCount.textContent = 'Analyzing...';
+                
+                // Send request to discover URLs
+                fetch('/discover-urls', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ url: url }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Update discovered URLs count
+                        discoveredUrlsCount.textContent = data.url_count;
+                        
+                        // Update progress bar based on number of URLs
+                        // Scale to make it look good (max 100%)
+                        const progressPercent = Math.min(100, Math.max(10, Math.log10(data.url_count) * 33));
+                        discoveredUrlsProgress.style.width = `${progressPercent}%`;
+                        
+                        // Store URLs in session storage for the dashboard
+                        sessionStorage.setItem('discoveredUrls', JSON.stringify(data.urls));
+                    } else {
+                        discoveredUrlsCount.textContent = 'Error';
+                        discoveredUrlsProgress.style.width = '0%';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    discoveredUrlsCount.textContent = 'Error';
+                    discoveredUrlsProgress.style.width = '0%';
+                });
+            }
             
             startButton.addEventListener('click', function() {
                 const url = document.getElementById('targetUrl').value.trim();
