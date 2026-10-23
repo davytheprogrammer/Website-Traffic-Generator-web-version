@@ -579,26 +579,29 @@
                 
                 let html = '';
                 visitedUrls.forEach((visit, index) => {
-                    let statusClass = getStatusClass(visit.status_code);
+                    const statusCode = Number(visit.status_code) || 0;
+                    let statusClass = getStatusClass(statusCode);
+                    const safeUrl = getSafeHttpUrl(visit.url);
+                    const safeUrlText = escapeHtml(truncateUrl(visit.url || '', 60));
+                    const safeTimestamp = escapeHtml(String(visit.timestamp || ''));
+                    const safePageTitle = escapeHtml(String(visit.page_title || ''));
                     
                     // Format title/URL for display
-                    let urlDisplay = visit.url;
-                    let titleDisplay = '';
-                    if (visit.page_title) {
-                        titleDisplay = `<br><small class="text-muted">${visit.page_title}</small>`;
-                    }
+                    const titleDisplay = safePageTitle
+                        ? `<br><small class="text-muted">${safePageTitle}</small>`
+                        : '';
                     
                     html += `
                         <tr>
                             <td>${index + 1}</td>
-                            <td>${visit.timestamp}</td>
+                            <td>${safeTimestamp}</td>
                             <td class="text-break">
-                                <a href="${visit.url}" target="_blank" rel="noopener noreferrer">
-                                    ${truncateUrl(urlDisplay, 60)}
+                                <a href="${safeUrl}" target="_blank" rel="noopener noreferrer">
+                                    ${safeUrlText}
                                 </a>
                                 ${titleDisplay}
                             </td>
-                            <td><span class="badge bg-${statusClass}">${visit.status_code}</span></td>
+                            <td><span class="badge bg-${statusClass}">${statusCode}</span></td>
                         </tr>
                     `;
                 });
@@ -726,9 +729,10 @@
                         initialUrlCount = data.initialUrlCount || 0;
                         newUrlsDiscovered = data.newUrlsDiscovered || 0;
                         
-                        if (data.startTime) {
+                        if (data.startTime && isActive) {
                             startTime = new Date(data.startTime);
                             timer = setInterval(updateElapsedTime, 1000);
+                            updateElapsedTime();
                         }
                         
                         // Update UI
@@ -953,6 +957,27 @@
                     // Fallback if URL parsing fails
                     return url.substring(0, maxLength - 3) + '...';
                 }
+            }
+
+            function escapeHtml(value) {
+                return value
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            }
+
+            function getSafeHttpUrl(url) {
+                try {
+                    const parsed = new URL(url);
+                    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+                        return parsed.href;
+                    }
+                } catch (e) {
+                    // Invalid URL
+                }
+                return '#';
             }
         });
     </script>

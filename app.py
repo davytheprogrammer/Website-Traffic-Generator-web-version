@@ -1,7 +1,6 @@
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session
 from flask_socketio import SocketIO
 import threading
-import json
 import os
 import time
 from datetime import datetime
@@ -18,9 +17,25 @@ socketio = SocketIO(app)
 # Active traffic generation sessions
 active_sessions = {}
 
-# Current user and time information
-CURRENT_USER = "davytheprogrammer"
-CURRENT_TIME = "2025-04-08 11:11:10"
+def get_current_user():
+    """Return the current user from environment, with fallback."""
+    return os.environ.get('USER', 'unknown')
+
+def get_current_time():
+    """Return the current UTC time string."""
+    return datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')
+
+def cleanup_inactive_sessions():
+    """Remove inactive sessions from the active session store."""
+    inactive_session_ids = []
+    for session_id, session_data in active_sessions.items():
+        generator = session_data.get('generator')
+        thread = session_data.get('thread')
+        if not generator or not generator.is_active() or (thread and not thread.is_alive()):
+            inactive_session_ids.append(session_id)
+    
+    for session_id in inactive_session_ids:
+        active_sessions.pop(session_id, None)
 
 @app.route('/')
 def index():
@@ -28,12 +43,12 @@ def index():
     # Check if user has acknowledged disclaimer
     if not session.get('disclaimer_accepted', False):
         return redirect(url_for('disclaimer'))
-    return render_template('index.html', current_user=CURRENT_USER, current_time=CURRENT_TIME)
+    return render_template('index.html', current_user=get_current_user(), current_time=get_current_time())
 
 @app.route('/disclaimer')
 def disclaimer():
     """Disclaimer page that users must accept before using the tool"""
-    return render_template('disclaimer.html', current_user=CURRENT_USER, current_time=CURRENT_TIME)
+    return render_template('disclaimer.html', current_user=get_current_user(), current_time=get_current_time())
 
 @app.route('/accept-disclaimer', methods=['POST'])
 def accept_disclaimer():
@@ -44,7 +59,7 @@ def accept_disclaimer():
 @app.route('/validate-url', methods=['POST'])
 def validate_url_endpoint():
     """Endpoint to validate a URL before starting traffic generation"""
-    data = request.json
+    data = request.get_json(silent=True) or {}
     url = data.get('url', '')
     
     # Validate the URL
@@ -58,7 +73,7 @@ def validate_url_endpoint():
 @app.route('/discover-urls', methods=['POST'])
 def discover_urls_endpoint():
     """Endpoint to discover URLs on a website"""
-    data = request.json
+    data = request.get_json(silent=True) or {}
     url = data.get('url', '')
     
     try:
@@ -93,16 +108,20 @@ def dashboard():
         url=url, 
         max_visits=visit_count,
         start_time=datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
-        current_user=CURRENT_USER,
-        current_time=CURRENT_TIME
+        current_user=get_current_user(),
+        current_time=get_current_time()
     )
 
 @app.route('/start-traffic', methods=['POST'])
 def start_traffic():
     """Start traffic generation process"""
-    data = request.json
+    cleanup_inactive_sessions()
+    data = request.get_json(silent=True) or {}
     url = data.get('url', '')
-    visit_count = data.get('visits', 0)
+    try:
+        visit_count = int(data.get('visits', 0))
+    except (TypeError, ValueError):
+        visit_count = 0
     url_list = data.get('url_list', [])
     
     # Validate inputs
@@ -115,8 +134,14 @@ def start_traffic():
     # Create traffic generator with discovered URL list if available
     generator = TrafficGenerator(url, visit_count, session_id, socketio, url_list)
     
+    def run_generator():
+        try:
+            generator.start()
+        finally:
+            active_sessions.pop(session_id, None)
+
     # Start generation in a separate thread
-    thread = threading.Thread(target=generator.start)
+    thread = threading.Thread(target=run_generator)
     thread.daemon = True
     thread.start()
     
@@ -137,7 +162,7 @@ def start_traffic():
 @app.route('/stop-traffic', methods=['POST'])
 def stop_traffic():
     """Stop an active traffic generation session"""
-    data = request.json
+    data = request.get_json(silent=True) or {}
     session_id = data.get('session_id', '')
     
     if session_id in active_sessions:
@@ -150,6 +175,7 @@ def stop_traffic():
 @app.route('/session-status/<session_id>')
 def session_status(session_id):
     """Get the status of a traffic generation session"""
+    cleanup_inactive_sessions()
     if session_id in active_sessions:
         generator = active_sessions[session_id]['generator']
         return jsonify({
