@@ -1,3 +1,11 @@
-node_modules/
+.venv/
 venv/
-ghostdriver.log
+__pycache__/
+*.py[cod]
+.env
+.env.*
+!.env.example
+instance/
+*.log
+dist/
+build/

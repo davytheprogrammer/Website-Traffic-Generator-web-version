@@ -1,80 +1,49 @@
-Dome a favour and star the repo if you find it helpful, means a lot 
-# 🌐 Website Traffic Generator - Organic Traffic Simulation Tool..
+# Website Availability Checker
 
-![Website Traffic Generator Dashboard](https://github.com/davytheprogrammer/Website-Traffic-Generator-web-version/blob/main/static/Screenshot%20from%202025-04-08%2014-49-04.png?raw=true)
+A small local dashboard for running clearly identified, low-rate availability checks against websites you own or are explicitly authorized to test.
 
-A powerful Flask-based application that simulates organic website traffic patterns for testing and educational purposes. Perfect for developers, SEO professionals, and website owners who need to test their analytics implementations.
+This project intentionally does not simulate visitors or try to influence analytics. It sends at most one request per second to one configured URL, uses a fixed identifying user-agent, stops at 30 requests, and does not crawl pages, follow redirects, rotate proxies, or impersonate browsers.
 
-## 🚨 Critical Disclaimer (Read Before Use)  
+## Requirements
 
-<div align="center" style="background-color: #fff3cd; padding: 15px; border-radius: 5px; border-left: 5px solid #ffc107;">
-  <strong>⚠️ LEGAL & ETHICAL WARNING ⚠️</strong>
-  <p>This tool is for <strong>EDUCATIONAL PURPOSES ONLY</strong>. Unauthorized use may violate laws including:</p>
-  <ul style="text-align: left;">
-    <li>Computer Fraud and Abuse Act (CFAA)</li>
-    <li>Digital Millennium Copyright Act (DMCA)</li>
-    <li>Google Analytics Terms of Service</li>
-    <li>Various international cybercrime laws</li>
-  </ul>
-  <p>By using this software, you accept FULL LEGAL RESPONSIBILITY for your actions.</p>
-</div>
+- Python 3.10+
+- A hostname you control or have permission to check
 
-## 🔥 Key Features  
+## Run locally
 
-| Feature | Description |  
-|---------|-------------|  
-| **🌱 Organic Simulation** | Mimics human browsing patterns with randomized clicks and dwell times |  
-| **🔄 Proxy Rotation** | Built-in support for proxy lists to avoid IP blocking |  
-| **📊 Real-time Dashboard** | Visual analytics of your traffic simulation |  
-| **🤖 User Agent Rotation** | Automatically cycles through 100+ browser/device combinations |  
-| **⚙️ Configurable Limits** | Set precise visit counts (up to 500/session) |  
-| **🔒 Session Persistence** | Saves progress locally if interrupted |  
+```sh
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+python -m pip install -r requirements.txt
 
-## 🛠️ Installation & Setup  
-
-### Prerequisites  
-- Python 3.8+  
-- Pip package manager  
-- Chrome/Firefox browser  
-
-### Quick Start  
-```bash
-# 1. Clone repository
-git clone https://github.com/davytheprogrammer/Website-Traffic-Generator-web-version.git
-cd Website-Traffic-Generator-web-version
-
-# 2. Install dependencies
-pip install -r requirements.txt
-
-# 3. Launch application
+# Use exact origins only. Include non-default ports; no wildcard entries are supported.
+export LOADTEST_ALLOWED_ORIGINS="http://127.0.0.1:5000,https://staging.example.test"
 python app.py
-
-# 4. Access dashboard at http://localhost:5000
 ```
 
-## ⚙️ Configuration Options  
+Open <http://127.0.0.1:5000>. The control panel binds to loopback only. It has no authentication and must not be exposed to the public internet or placed behind a public reverse proxy.
 
-Edit these files to customize behavior:  
+The origin allowlist is a server-side setting, not a browser setting. Each entry must be an exact `http://` or `https://` origin, including a non-default port when needed; wildcards and paths are rejected. Enter a full URL whose origin exactly matches one of the configured entries. Validation only checks URL syntax and the allowlist; it does not contact the target.
 
-```plaintext
-📂 config/
-├── proxies.txt          # Add your proxy servers here  
-├── user_agents.py       # Customize browser signatures  
-└── settings.ini         # Adjust timing/delay parameters  
-```
+## Safeguards
 
-## 📜 License  
-This project is released under **Educational Use Only** terms. No warranty provided. Use at your own risk.
+- The UI requires an explicit authorization acknowledgment before it starts a check.
+- The server independently checks the exact-origin allowlist for every requested URL.
+- Sessions are sequential, limited to 30 requests, and paced at no more than one request per second.
+- A target response of HTTP 429 or 503 stops the run early.
+- Each request identifies itself as `AuthorizedAvailabilityCheck/1.0`.
+- Requests do not follow redirects, persist cookies, fetch page assets, or discover links.
+- The dashboard binds to `127.0.0.1` and accepts same-origin control requests only.
 
-## 👨‍💻 Author  
-**Davis Ogega**  
-[![GitHub](https://img.shields.io/badge/GitHub-Profile-blue?style=flat&logo=github)](https://github.com/davytheprogrammer)  
-[![Twitter](https://img.shields.io/badge/Twitter-Follow-blue?style=flat&logo=twitter)](https://twitter.com/officialogega)  
+Only run checks within an agreed test window and stop if the target owner asks you to. Use a dedicated staging environment when possible. This tool is for availability smoke checks, not high-volume load testing.
 
----
+## Project files
 
-<div align="center">
-  <sub>Built with ❤️ and Python | Please use responsibly</sub>
-</div>
-```
+- `app.py` — local Flask UI and allowlist-checked API
+- `availability_checker.py` — bounded, sequential request runner
+- `url_validator.py` — URL normalization and exact-host authorization
+- `templates/index.html` and `static/css/styles.css` — dashboard
 
+## License
+
+See [LICENSE.md](LICENSE.md).

@@ -1,171 +1,128 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for, session
-from flask_socketio import SocketIO
-import threading
-import json
+"""Local dashboard for bounded, authorized website availability checks."""
+
+from __future__ import annotations
+
 import os
+import threading
 import time
-from datetime import datetime
+from datetime import datetime, timezone
+from urllib.parse import urlsplit
 
-# Import custom modules
-from url_validator import validate_url
-from traffic_generator import TrafficGenerator
-from url_analyzer import discover_urls
+from flask import Flask, jsonify, render_template, request
 
-app = Flask(__name__)
-app.secret_key = os.urandom(24)
-socketio = SocketIO(app)
+from availability_checker import AvailabilityChecker, MAX_REQUESTS, REQUEST_INTERVAL_SECONDS
+from url_validator import normalize_origin, validate_url
 
-# Active traffic generation sessions
-active_sessions = {}
 
-# Current user and time information
-CURRENT_USER = "davytheprogrammer"
-CURRENT_TIME = "2025-04-08 11:11:10"
-
-@app.route('/')
-def index():
-    """Main page with disclaimer and input form"""
-    # Check if user has acknowledged disclaimer
-    if not session.get('disclaimer_accepted', False):
-        return redirect(url_for('disclaimer'))
-    return render_template('index.html', current_user=CURRENT_USER, current_time=CURRENT_TIME)
-
-@app.route('/disclaimer')
-def disclaimer():
-    """Disclaimer page that users must accept before using the tool"""
-    return render_template('disclaimer.html', current_user=CURRENT_USER, current_time=CURRENT_TIME)
-
-@app.route('/accept-disclaimer', methods=['POST'])
-def accept_disclaimer():
-    """Mark the disclaimer as accepted"""
-    session['disclaimer_accepted'] = True
-    return redirect(url_for('index'))
-
-@app.route('/validate-url', methods=['POST'])
-def validate_url_endpoint():
-    """Endpoint to validate a URL before starting traffic generation"""
-    data = request.json
-    url = data.get('url', '')
-    
-    # Validate the URL
-    is_valid, message = validate_url(url)
-    
-    return jsonify({
-        'valid': is_valid,
-        'message': message
-    })
-
-@app.route('/discover-urls', methods=['POST'])
-def discover_urls_endpoint():
-    """Endpoint to discover URLs on a website"""
-    data = request.json
-    url = data.get('url', '')
-    
-    try:
-        # Discover URLs (limit to 100 for performance)
-        urls = discover_urls(url, max_depth=1, max_urls=100)
-        
-        return jsonify({
-            'success': True,
-            'url_count': len(urls),
-            'urls': urls[:100]  # Limit response size
-        })
-    except Exception as e:
-        app.logger.error(f"Error discovering URLs: {str(e)}")
-        return jsonify({
-            'success': False,
-            'message': f"Error discovering URLs: {str(e)}"
-        })
-
-@app.route('/dashboard')
-def dashboard():
-    """Dashboard page for visualizing traffic generation"""
-    # Get URL and visit count from query parameters
-    url = request.args.get('url', '')
-    visit_count = request.args.get('visits', 0, type=int)
-    
-    # Validate input
-    if not url or visit_count <= 0 or visit_count > 500:
-        return redirect(url_for('index'))
-    
-    return render_template(
-        'dashboard.html', 
-        url=url, 
-        max_visits=visit_count,
-        start_time=datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
-        current_user=CURRENT_USER,
-        current_time=CURRENT_TIME
+def create_app(test_config=None):
+    app = Flask(__name__)
+    app.config.update(
+        ALLOWED_ORIGINS={
+            origin
+            for value in os.environ.get("LOADTEST_ALLOWED_ORIGINS", "").split(",")
+            if (origin := normalize_origin(value))
+        },
+        TRUSTED_HOSTS=["localhost", "127.0.0.1", "[::1]"],
+        MAX_CONTENT_LENGTH=16 * 1024,
     )
+    if test_config:
+        app.config.update(test_config)
+    app.active_sessions = {}
+    app.sessions_lock = threading.Lock()
 
-@app.route('/start-traffic', methods=['POST'])
-def start_traffic():
-    """Start traffic generation process"""
-    data = request.json
-    url = data.get('url', '')
-    visit_count = data.get('visits', 0)
-    url_list = data.get('url_list', [])
-    
-    # Validate inputs
-    if not url or visit_count <= 0 or visit_count > 500:
-        return jsonify({'success': False, 'message': 'Invalid parameters'})
-    
-    # Generate unique session ID
-    session_id = f"{int(time.time())}-{os.urandom(4).hex()}"
-    
-    # Create traffic generator with discovered URL list if available
-    generator = TrafficGenerator(url, visit_count, session_id, socketio, url_list)
-    
-    # Start generation in a separate thread
-    thread = threading.Thread(target=generator.start)
-    thread.daemon = True
-    thread.start()
-    
-    # Store active session
-    active_sessions[session_id] = {
-        'generator': generator,
-        'thread': thread,
-        'url': url,
-        'max_visits': visit_count,
-        'started_at': datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-    }
-    
-    return jsonify({
-        'success': True, 
-        'session_id': session_id
-    })
+    def same_origin_request():
+        origin = request.headers.get("Origin")
+        if not origin:
+            return False
+        try:
+            parsed = urlsplit(origin)
+        except ValueError:
+            return False
+        return parsed.scheme == "http" and parsed.netloc.lower() == request.host.lower()
 
-@app.route('/stop-traffic', methods=['POST'])
-def stop_traffic():
-    """Stop an active traffic generation session"""
-    data = request.json
-    session_id = data.get('session_id', '')
-    
-    if session_id in active_sessions:
-        active_sessions[session_id]['generator'].stop()
-        del active_sessions[session_id]
-        return jsonify({'success': True})
-    
-    return jsonify({'success': False, 'message': 'Session not found'})
+    def validate_target(raw_url):
+        return validate_url(raw_url, app.config["ALLOWED_ORIGINS"])
 
-@app.route('/session-status/<session_id>')
-def session_status(session_id):
-    """Get the status of a traffic generation session"""
-    if session_id in active_sessions:
-        generator = active_sessions[session_id]['generator']
-        return jsonify({
-            'active': generator.is_active(),
-            'visits_completed': generator.visits_completed,
-            'max_visits': generator.max_visits,
-            'urls_visited': generator.urls_visited
-        })
-    
-    return jsonify({'active': False, 'message': 'Session not found'})
+    @app.get("/")
+    def index():
+        return render_template(
+            "index.html",
+            allowed_origins=sorted(app.config["ALLOWED_ORIGINS"]),
+            max_requests=MAX_REQUESTS,
+            request_interval=REQUEST_INTERVAL_SECONDS,
+            current_year=datetime.now(timezone.utc).year,
+        )
 
-@socketio.on('connect')
-def handle_connect():
-    """Handle client connection to WebSocket"""
-    pass
+    @app.post("/api/validate")
+    def validate_url_endpoint():
+        if not same_origin_request():
+            return jsonify(valid=False, message="Cross-origin requests are not allowed."), 403
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify(valid=False, message="Send a JSON object containing the target URL."), 400
+        valid, message, normalized_url = validate_target(data.get("url"))
+        return jsonify(valid=valid, message=message, url=normalized_url), 200 if valid else 400
 
-if __name__ == '__main__':
-    # Use debug=False in production
-    socketio.run(app, debug=False, host='0.0.0.0', port=5000)
+    @app.post("/api/checks")
+    def start_check():
+        if not same_origin_request():
+            return jsonify(success=False, message="Cross-origin requests are not allowed."), 403
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify(success=False, message="Send a JSON object containing the check settings."), 400
+        valid, message, normalized_url = validate_target(data.get("url"))
+        if not valid:
+            return jsonify(success=False, message=message), 400
+        if data.get("authorized") is not True:
+            return jsonify(success=False, message="Confirm that you own or are authorized to test this origin."), 400
+        raw_requested = data.get("requests", 0)
+        if isinstance(raw_requested, bool) or not str(raw_requested).isdigit():
+            return jsonify(success=False, message="Request count must be a whole number."), 400
+        requested = int(raw_requested)
+        if not 1 <= requested <= MAX_REQUESTS:
+            return jsonify(success=False, message=f"Choose between 1 and {MAX_REQUESTS} requests."), 400
+
+        with app.sessions_lock:
+            if any(item["thread"].is_alive() or item["checker"].is_active() for item in app.active_sessions.values()):
+                return jsonify(success=False, message="A check is already running. Stop it before starting another."), 409
+            # Keep the in-memory history bounded.
+            finished = [key for key, item in app.active_sessions.items() if not item["thread"].is_alive()]
+            while len(app.active_sessions) >= 10 and finished:
+                app.active_sessions.pop(finished.pop(0), None)
+            if len(app.active_sessions) >= 10:
+                return jsonify(success=False, message="Session history is full. Restart the local app to clear it."), 409
+
+            session_id = f"{int(time.time())}-{os.urandom(8).hex()}"
+            checker = AvailabilityChecker(normalized_url, requested, session_id)
+            thread = threading.Thread(target=checker.start, name=f"check-{session_id}", daemon=True)
+            app.active_sessions[session_id] = {"checker": checker, "thread": thread}
+            thread.start()
+
+        return jsonify(success=True, session_id=session_id), 202
+
+    @app.post("/api/checks/<session_id>/stop")
+    def stop_check(session_id):
+        if not same_origin_request():
+            return jsonify(success=False, message="Cross-origin requests are not allowed."), 403
+        item = app.active_sessions.get(session_id)
+        if not item:
+            return jsonify(success=False, message="Session not found."), 404
+        item["checker"].stop()
+        return jsonify(success=True)
+
+    @app.get("/api/checks/<session_id>")
+    def session_status(session_id):
+        item = app.active_sessions.get(session_id)
+        if not item:
+            return jsonify(active=False, message="Session not found."), 404
+        return jsonify(item["checker"].snapshot())
+
+    return app
+
+
+app = create_app()
+
+
+if __name__ == "__main__":
+    # Local-only by default. Do not expose this control panel to the public internet.
+    app.run(host="127.0.0.1", port=int(os.environ.get("PORT", "5000")), debug=False)
