@@ -17,9 +17,9 @@
 
     <main>
       <section class="intro">
-        <div class="eyebrow">A SMALL, HONEST SIGNAL</div>
-        <h1>Check your site.<br><em>Know where it stands.</em></h1>
-        <p>Run a low-rate availability check against a hostname you control. Every request is identified, bounded, and sent directly to the same URL.</p>
+        <div class="eyebrow">LOCAL AVAILABILITY MONITOR</div>
+        <h1>Authorized check.<br><em>Clear signal.</em></h1>
+        <p>Verify a website you control with a small, transparent sequence of direct HTTP requests. No audience simulation, crawling, or proxy tricks.</p>
       </section>
 
       <section class="notice" aria-label="Safety limits">
@@ -27,10 +27,11 @@
         <div><strong>Built for authorized checks, not audience simulation.</strong><br><span>At least {{ request_interval|int }} second between requests · {{ max_requests }} requests maximum · no proxies, crawling, browser impersonation, or redirect following.</span></div>
       </section>
 
+      <div class="dashboard-grid">
       <section class="panel setup-panel" aria-labelledby="setup-heading">
         <div class="panel-heading"><div><div class="section-kicker">CONFIGURE A CHECK</div><h2 id="setup-heading">Target settings</h2></div><span class="step-label">01 / 02</span></div>
         {% if allowed_origins %}
-          <p class="allowlist-copy">Authorized origins configured on this machine:</p>
+          <div class="allowlist-heading"><span class="allowlist-icon">✓</span><div><strong>Authorized targets</strong><small>Configured locally on this machine</small></div></div>
           <ul class="host-list" aria-label="Configured authorized origins">{% for origin in allowed_origins %}<li>{{ origin }}</li>{% endfor %}</ul>
         {% else %}
           <div class="empty-allowlist"><strong>No authorized targets configured.</strong><span>Set <code>LOADTEST_ALLOWED_ORIGINS</code> to exact origins before running a check. Example: <code>http://127.0.0.1:5000,https://staging.example.test</code></span></div>
@@ -38,16 +39,17 @@
 
         <div class="form-grid">
           <div class="field field-wide"><label for="targetUrl">Target URL</label><input id="targetUrl" type="url" placeholder="https://staging.example.test/health" autocomplete="url" spellcheck="false" required><small>Must use an exact origin from the allowlist above. Validation makes no network request.</small></div>
-          <div class="field"><label for="requestCount">Number of requests</label><select id="requestCount"><option value="1">1 request</option><option value="5" selected>5 requests</option><option value="10">10 requests</option><option value="30">30 requests (maximum)</option></select><small>Sent sequentially, at least one second apart.</small></div>
-          <div class="field validation-field"><label>Target authorization</label><button type="button" class="button button-secondary" id="validateButton">Validate target</button><small id="validationMessage" class="validation-message" role="status" aria-live="polite">Enter a URL and validate it first.</small></div>
+          <div class="field"><label for="requestCount">Checks to send</label><select id="requestCount"><option value="1">1 request</option><option value="5" selected>5 requests</option><option value="10">10 requests</option><option value="30">30 requests (maximum)</option></select><small>Sequential requests, at least one second apart.</small></div>
+          <div class="field validation-field"><label>Target authorization</label><button type="button" class="button button-secondary" id="validateButton">Validate target <span aria-hidden="true">✓</span></button><small id="validationMessage" class="validation-message" role="status" aria-live="polite">Enter a URL and validate it first.</small></div>
         </div>
 
         <label class="consent-row" for="authorized"><input id="authorized" type="checkbox"><span><strong>I own this website or have explicit permission to check it.</strong><small>This tool sends real HTTP requests. Use the configured allowlist only for systems you are authorized to test.</small></span></label>
-        <div class="actions"><button type="button" class="button button-primary" id="startButton" disabled>Start availability check <span aria-hidden="true">↗</span></button><span class="action-note">Requests use the local machine’s normal network connection.</span></div>
+        <div class="actions"><button type="button" class="button button-primary" id="startButton" disabled>Start availability check <span aria-hidden="true">↗</span></button><span class="action-note" id="startHint">Validate the target and confirm authorization to continue.</span></div>
       </section>
 
       <section class="panel results-panel" aria-labelledby="results-heading">
-        <div class="panel-heading"><div><div class="section-kicker">LIVE RESULTS</div><h2 id="results-heading">Check activity</h2></div><span class="status-pill" id="statusPill"><i></i><span>Ready</span></span></div>
+        <div class="panel-heading"><div><div class="section-kicker">CHECK ACTIVITY</div><h2 id="results-heading">Live results</h2></div><span class="status-pill" id="statusPill"><i></i><span>Ready</span></span></div>
+        <div class="run-summary"><span class="run-summary-label">CURRENT TARGET</span><strong id="summaryTarget">No target selected</strong><span id="runHint">Validate a target to prepare a check.</span></div>
         <div id="errorMessageBox" class="error-box" role="alert" hidden></div>
         <div class="metrics-grid">
           <div class="metric"><span>Requests completed</span><strong><span id="completedMetric">0</span> <small>/ <span id="maxMetric">—</span></small></strong></div>
@@ -60,6 +62,7 @@
         <div class="table-wrap"><table><thead><tr><th>#</th><th>Time (UTC)</th><th>HTTP status</th><th>Response</th></tr></thead><tbody id="requestRows"><tr><td colspan="4" class="empty-row">Results will appear here when a check starts.</td></tr></tbody></table></div>
         <p class="results-footnote">Requests are sent with a fixed <code>AuthorizedAvailabilityCheck</code> user-agent. Redirect responses are recorded but never followed.</p>
       </section>
+      </div>
     </main>
 
     <footer><span>Site Check</span><span>Transparent by design · Local-only control panel</span><span>© {{ current_year }}</span></footer>
@@ -83,7 +86,17 @@
       let pollTimer = null;
 
       function updateStartState() {
-        startButton.disabled = !validatedUrl || validatedUrl !== targetInput.value.trim() || !consentInput.checked || Boolean(sessionId);
+        const targetIsValidated = Boolean(validatedUrl) && validatedUrl === targetInput.value.trim();
+        startButton.disabled = !targetIsValidated || !consentInput.checked || Boolean(sessionId);
+        if (sessionId) {
+          document.getElementById('startHint').textContent = 'A check is already running.';
+        } else if (!targetIsValidated) {
+          document.getElementById('startHint').textContent = 'Validate the target and confirm authorization to continue.';
+        } else if (!consentInput.checked) {
+          document.getElementById('startHint').textContent = 'Confirm that you own or are authorized to check this website.';
+        } else {
+          document.getElementById('startHint').textContent = 'Ready to send a bounded sequence of direct requests.';
+        }
       }
 
       function setStatus(value) {
@@ -122,8 +135,10 @@
           validatedUrl = result.url;
           targetInput.value = result.url;
           validationMessage.classList.add('is-valid');
-          validationMessage.textContent = result.message;
+          validationMessage.textContent = `✓ ${result.message}`;
           document.getElementById('resultTarget').textContent = result.url;
+          document.getElementById('summaryTarget').textContent = result.url;
+          document.getElementById('runHint').textContent = 'Ready to start an authorized check.';
           errorBox.hidden = true;
         } catch (error) {
           validationMessage.classList.add('is-invalid');
@@ -139,8 +154,15 @@
           validatedUrl = '';
           validationMessage.className = 'validation-message';
           validationMessage.textContent = 'Target changed. Validate it again before starting.';
+          document.getElementById('runHint').textContent = 'Target changed. Validate it again before starting.';
         }
         updateStartState();
+      });
+      targetInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' && !validateButton.disabled) {
+          event.preventDefault();
+          validateButton.click();
+        }
       });
       consentInput.addEventListener('change', updateStartState);
 
@@ -164,6 +186,7 @@
           sessionId = result.session_id;
           document.getElementById('maxMetric').textContent = countInput.value;
           setStatus('Running');
+          document.getElementById('runHint').textContent = 'Requests are being sent sequentially. You can stop this check at any time.';
           stopButton.disabled = false;
           updateStartState();
           pollTimer = window.setInterval(refreshStatus, 1000);
@@ -198,6 +221,7 @@
             sessionId = '';
             stopButton.disabled = true;
             setStatus(data.error ? 'Error' : data.requests_completed < data.max_requests ? 'Stopped' : data.error_count ? 'Issues' : 'Complete');
+            document.getElementById('runHint').textContent = data.error ? data.error : data.requests_completed < data.max_requests ? 'Check stopped before reaching the requested count.' : data.error_count ? 'Check complete with one or more non-success responses.' : 'Check complete. Review the response log below.';
             updateStartState();
           }
         } catch (error) {
@@ -241,7 +265,11 @@
           values.forEach((value, cellIndex) => {
             const cell = document.createElement('td');
             cell.textContent = value;
-            if (cellIndex === 2) cell.className = item.redirect_blocked ? 'response-warn' : item.status_code !== null && item.status_code < 300 ? 'response-ok' : 'response-error';
+            if (cellIndex === 2) {
+              const responseClass = item.redirect_blocked ? 'response-warn' : item.status_code !== null && item.status_code < 300 ? 'response-ok' : 'response-error';
+              cell.className = responseClass;
+              cell.innerHTML = `<span class="response-badge ${responseClass}">${value}</span>`;
+            }
             row.append(cell);
           });
           rows.append(row);
