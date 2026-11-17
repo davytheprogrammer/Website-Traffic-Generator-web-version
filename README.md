@@ -4,6 +4,20 @@ A small local dashboard for running clearly identified, low-rate availability ch
 
 This project intentionally does not simulate visitors or try to influence analytics. It sends at most one request per second to one configured URL, uses a fixed identifying user-agent, stops at 30 requests, and does not crawl pages, follow redirects, rotate proxies, or impersonate browsers.
 
+## Dashboard preview
+
+### 1. Configured dashboard — desktop
+
+![Desktop dashboard with a local authorized target configured](screenshots/01-dashboard-desktop.png)
+
+### 2. Configured dashboard — mobile
+
+![Responsive mobile layout of the configured dashboard](screenshots/02-dashboard-mobile.png)
+
+### 3. Empty allowlist — setup guidance
+
+![Dashboard showing the setup guidance when no authorized targets are configured](screenshots/03-empty-allowlist.png)
+
 ## Requirements
 
 - Python 3.10+
